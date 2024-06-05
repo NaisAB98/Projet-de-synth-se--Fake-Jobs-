@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
@@ -11,6 +11,7 @@ const App: React.FC = () => {
   const [registrationMessage, setRegistrationMessage] = useState<string>('');
   const [loginMessage, setLoginMessage] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [searchHistory, setSearchHistory] = useState<Array<{content: string, result: string, timestamp: string}>>([]);
 
   const handleTweetSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -28,6 +29,11 @@ const App: React.FC = () => {
       );
       console.log("Received response from server:", response.data);
       setResult(response.data.result);
+
+      // Update search history after checking a tweet
+      if (isLoggedIn) {
+        fetchSearchHistory();
+      }
     } catch (error) {
       console.error('Error checking tweet:', error);
       setResult('An error occurred while checking the tweet.');
@@ -69,6 +75,7 @@ const App: React.FC = () => {
       setLoginMessage(response.data.message);
       if (response.status === 200) {
         setIsLoggedIn(true);
+        fetchSearchHistory(); // Fetch search history on login
       }
     } catch (error) {
       console.error('Error logging in:', error);
@@ -89,12 +96,34 @@ const App: React.FC = () => {
       setLoginMessage(response.data.message);
       if (response.status === 200) {
         setIsLoggedIn(false);
+        setSearchHistory([]);
       }
     } catch (error) {
       console.error('Error logging out:', error);
       setLoginMessage('An error occurred while logging out.');
     }
   };
+
+  const fetchSearchHistory = async () => {
+    try {
+      const response = await axios.get(
+        'http://localhost:5000/api/search-history',
+        {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+          withCredentials: true // Add this line
+        }
+      );
+      setSearchHistory(response.data.history);
+    } catch (error) {
+      console.error('Error fetching search history:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchSearchHistory();
+    }
+  }, [isLoggedIn]);
 
   return (
     <div className="App">
@@ -114,6 +143,14 @@ const App: React.FC = () => {
           <>
             <button onClick={handleLogout}>Logout</button>
             <p>{loginMessage}</p>
+            <h2>Search History</h2>
+            <ul>
+              {searchHistory.map((item, index) => (
+                <li key={index}>
+                  <p>{item.timestamp}: {item.content} - {item.result}</p>
+                </li>
+              ))}
+            </ul>
           </>
         ) : (
           <>
@@ -163,4 +200,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
