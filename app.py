@@ -1,13 +1,27 @@
-# app.py
-
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 import sqlite3
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+import numpy as np
+import pandas as pd
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'  # Changez cela pour une clé secrète aléatoire en production
 CORS(app, supports_credentials=True)
+
+# Charger le modèle une fois au démarrage de l'application
+model = load_model('BIGRU_SVM_Model.h5')
+
+# Lire le fichier CSV pour initialiser le tokenizer
+train_data = pd.read_csv('TrainData.csv')
+texts = train_data['Tweet_Text'].tolist()  # Remplacez 'text_column_name' par le nom de la colonne contenant les textes
+
+# Initialiser et former le tokenizer
+tokenizer = Tokenizer(num_words=100000, oov_token="<OOV>")
+tokenizer.fit_on_texts(texts)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -91,7 +105,7 @@ def logout():
     except Exception as e:
         return jsonify({'error': 'Internal Server Error'}), 500
 
-# Ajoutez cette fonction pour initialiser la table 'search_history'
+# Initialisation de la table 'search_history'
 def init_db():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
@@ -114,18 +128,53 @@ init_db()
 @app.route('/api/check-tweet', methods=['POST'])
 def check_tweet():
     try:
-        data = request.data.decode('utf-8-sig')
-        print('Data received:', data)
-                
-        tweet_data = request.get_json()
-        tweet_content = tweet_data.get('content')
-        
-        # vérification ici 
+        data = request.get_json()
+        tweet_content = data.get('content')
 
-        if 'fake' in tweet_content:
+        '''if not tweet_content:
+            return jsonify({'error': 'Le contenu est requis'}), 400
+
+        # Prétraitement du texte d'entrée
+        sequences = tokenizer.texts_to_sequences([tweet_content])
+        input_data = pad_sequences(sequences, maxlen=500, padding='post', truncating='post')
+
+        # Prédire en utilisant le modèle chargé
+        prediction = model.predict(input_data)
+
+        # Post-traitez la prédiction pour obtenir le résultat
+        result = 'This tweet is likely fake news.' if prediction[0][0] > 0.5 else 'This tweet seems legitimate.' '''
+        
+         # Utiliser des valeurs locales pour retweets, likes et comments
+        retweets = 0  # Exemple de valeur
+        likes = 0  # Exemple de valeur
+        comments = 0  # Exemple de valeur
+
+        # Prétraitement du texte d'entrée
+        sequences = tokenizer.texts_to_sequences([tweet_content])
+        text_data = pad_sequences(sequences, maxlen=500, padding='post', truncating='post')
+
+        # Combinaison des données textuelles et numériques
+        numerical_data = np.array([[retweets, likes, comments]])
+        input_data = np.hstack((text_data, numerical_data))
+
+        # Prédire en utilisant le modèle chargé
+        prediction = model.predict(input_data)
+
+        # Post-traitez la prédiction pour obtenir le résultat
+        #result = 'This tweet is likely fake news.' if prediction[0][0] > 0.5 else 'This tweet seems legitimate.'
+        
+        prediction = model.predict(input_data)
+        print(f'Prediction: {prediction}')  # Affichez la prédiction pour déboguer
+        prediction_score = prediction[0][0]
+     
+        # Détermination du résultat basé sur le score de prédiction
+        if prediction_score < 0:
             result = 'This tweet is likely fake news.'
         else:
             result = 'This tweet seems legitimate.'
+
+        # Affichez les valeurs de la prédiction directement
+        print(f'Prediction score: {prediction_score}')
 
         # Enregistrer la recherche si l'utilisateur est connecté
         if current_user.is_authenticated:
@@ -156,7 +205,6 @@ def search_history():
         return jsonify({'history': history_list})
     except Exception as e:
         return jsonify({'error': 'Internal Server Error'}), 500
-
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
