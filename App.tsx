@@ -4,33 +4,35 @@ import './App.css';
 
 const App: React.FC = () => {
   const [tweetContent, setTweetContent] = useState<string>('');
+  const [retweets, setRetweets] = useState<number>(0);
+  const [comments, setComments] = useState<number>(0);
+  const [likes, setLikes] = useState<number>(0);
   const [result, setResult] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [registrationUsername, setRegistrationUsername] = useState<string>('');
+  const [registrationPassword, setRegistrationPassword] = useState<string>('');
   const [registrationMessage, setRegistrationMessage] = useState<string>('');
   const [loginMessage, setLoginMessage] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [searchHistory, setSearchHistory] = useState<Array<{content: string, result: string, timestamp: string}>>([]);
+  const [searchHistory, setSearchHistory] = useState<Array<{ content: string, result: string, timestamp: string }>>([]);
 
   const handleTweetSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
     setResult('');
     try {
-      console.log("Sending request to server...");
       const response = await axios.post(
         'http://localhost:5000/api/check-tweet',
-        { content: tweetContent },
+        { content: tweetContent, retweets, comments, likes },
         {
           headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-          withCredentials: true // Add this line
+          withCredentials: true
         }
       );
-      console.log("Received response from server:", response.data);
       setResult(response.data.result);
 
-      // Update search history after checking a tweet
       if (isLoggedIn) {
         fetchSearchHistory();
       }
@@ -47,10 +49,10 @@ const App: React.FC = () => {
     try {
       const response = await axios.post(
         'http://localhost:5000/api/register',
-        { username, password },
+        { username: registrationUsername, password: registrationPassword },
         {
           headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-          withCredentials: true // Add this line
+          withCredentials: true
         }
       );
       setRegistrationMessage(response.data.message);
@@ -69,13 +71,13 @@ const App: React.FC = () => {
         { username, password },
         {
           headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-          withCredentials: true // Add this line
+          withCredentials: true
         }
       );
       setLoginMessage(response.data.message);
       if (response.status === 200) {
         setIsLoggedIn(true);
-        fetchSearchHistory(); // Fetch search history on login
+        fetchSearchHistory();
       }
     } catch (error) {
       console.error('Error logging in:', error);
@@ -90,7 +92,7 @@ const App: React.FC = () => {
         {},
         {
           headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-          withCredentials: true // Add this line
+          withCredentials: true
         }
       );
       setLoginMessage(response.data.message);
@@ -110,7 +112,7 @@ const App: React.FC = () => {
         'http://localhost:5000/api/search-history',
         {
           headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-          withCredentials: true // Add this line
+          withCredentials: true
         }
       );
       setSearchHistory(response.data.history);
@@ -129,13 +131,52 @@ const App: React.FC = () => {
     <div className="App">
       <header className="App-header">
         <h1>Fake News Checker</h1>
-        <form onSubmit={handleTweetSubmit}>
+        <form onSubmit={handleTweetSubmit} className="tweet-form">
           <textarea
             value={tweetContent}
             onChange={(e) => setTweetContent(e.target.value)}
             placeholder="Enter Tweet Content"
             required
+            className="tweet-textarea"
           />
+          <div className="numeric-inputs">
+            <label>
+              Retweets:
+              <input
+                type="number"
+                value={retweets}
+                onChange={(e) => setRetweets(Number(e.target.value))}
+                placeholder="Retweets"
+                required
+                min="0"
+                step="1"
+              />
+            </label>
+            <label>
+              Comments:
+              <input
+                type="number"
+                value={comments}
+                onChange={(e) => setComments(Number(e.target.value))}
+                placeholder="Comments"
+                required
+                min="0"
+                step="1"
+              />
+            </label>
+            <label>
+              Likes:
+              <input
+                type="number"
+                value={likes}
+                onChange={(e) => setLikes(Number(e.target.value))}
+                placeholder="Likes"
+                required
+                min="0"
+                step="1"
+              />
+            </label>
+          </div>
           <button type="submit" disabled={loading}>Check</button>
         </form>
         {loading ? <p>Loading...</p> : <p>{result}</p>}
@@ -177,15 +218,15 @@ const App: React.FC = () => {
             <form onSubmit={handleRegisterSubmit}>
               <input
                 type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={registrationUsername}
+                onChange={(e) => setRegistrationUsername(e.target.value)}
                 placeholder="Enter Username"
                 required
               />
               <input
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={registrationPassword}
+                onChange={(e) => setRegistrationPassword(e.target.value)}
                 placeholder="Enter Password"
                 required
               />
