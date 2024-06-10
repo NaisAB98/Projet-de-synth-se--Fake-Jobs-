@@ -125,29 +125,18 @@ def init_db():
 # Appelez init_db() au démarrage de l'application
 init_db()
 
+# Reste du code
 @app.route('/api/check-tweet', methods=['POST'])
 def check_tweet():
     try:
         data = request.get_json()
         tweet_content = data.get('content')
+        retweets = data.get('retweets', 0)
+        comments = data.get('comments', 0)
+        likes = data.get('likes', 0)
 
-        '''if not tweet_content:
+        if not tweet_content:
             return jsonify({'error': 'Le contenu est requis'}), 400
-
-        # Prétraitement du texte d'entrée
-        sequences = tokenizer.texts_to_sequences([tweet_content])
-        input_data = pad_sequences(sequences, maxlen=500, padding='post', truncating='post')
-
-        # Prédire en utilisant le modèle chargé
-        prediction = model.predict(input_data)
-
-        # Post-traitez la prédiction pour obtenir le résultat
-        result = 'This tweet is likely fake news.' if prediction[0][0] > 0.5 else 'This tweet seems legitimate.' '''
-        
-         # Utiliser des valeurs locales pour retweets, likes et comments
-        retweets = 0  # Exemple de valeur
-        likes = 0  # Exemple de valeur
-        comments = 0  # Exemple de valeur
 
         # Prétraitement du texte d'entrée
         sequences = tokenizer.texts_to_sequences([tweet_content])
@@ -159,35 +148,29 @@ def check_tweet():
 
         # Prédire en utilisant le modèle chargé
         prediction = model.predict(input_data)
-
-        # Post-traitez la prédiction pour obtenir le résultat
-        #result = 'This tweet is likely fake news.' if prediction[0][0] > 0.5 else 'This tweet seems legitimate.'
-        
-        prediction = model.predict(input_data)
         print(f'Prediction: {prediction}')  # Affichez la prédiction pour déboguer
         prediction_score = prediction[0][0]
-     
+
         # Détermination du résultat basé sur le score de prédiction
         if prediction_score < 0:
             result = 'This tweet is likely fake news.'
         else:
-            result = 'This tweet seems legitimate.'
+            result = 'This tweet is likely legitimate news.'
 
-        # Affichez les valeurs de la prédiction directement
-        print(f'Prediction score: {prediction_score}')
-
-        # Enregistrer la recherche si l'utilisateur est connecté
-        if current_user.is_authenticated:
-            conn = sqlite3.connect('users.db')
-            c = conn.cursor()
-            c.execute('INSERT INTO search_history (user_id, tweet_content, result) VALUES (?, ?, ?)', 
-                      (current_user.id, tweet_content, result))
-            conn.commit()
-            conn.close()
+        # Enregistrer la recherche dans l'historique si l'utilisateur est connecté
+        if 'username' in session:
+            timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            username = session['username']
+            new_search = SearchHistory(username=username, content=tweet_content, result=result, timestamp=timestamp)
+            db.session.add(new_search)
+            db.session.commit()
 
         return jsonify({'result': result})
+
     except Exception as e:
-        return jsonify({'error': 'Internal Server Error'}), 500
+        print(f"Error in check_tweet: {e}")  # Log the error
+        return jsonify({'error': 'An error occurred while checking the tweet'}), 500
+
 
 @app.route('/api/search-history', methods=['GET'])
 @login_required  # Assurez-vous que l'utilisateur est connecté
