@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import ClipLoader from 'react-spinners/ClipLoader';
+import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 import './App.css';
 
 const App: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<string>('tweet');
   const [tweetContent, setTweetContent] = useState<string>('');
   const [retweets, setRetweets] = useState<number>(0);
   const [comments, setComments] = useState<number>(0);
   const [likes, setLikes] = useState<number>(0);
-  const [result, setResult] = useState<string>('');
+  const [covidResult, setCovidResult] = useState<string>('');
+  const [authenticityResult, setAuthenticityResult] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -16,31 +20,85 @@ const App: React.FC = () => {
   const [registrationMessage, setRegistrationMessage] = useState<string>('');
   const [loginMessage, setLoginMessage] = useState<string>('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [searchHistory, setSearchHistory] = useState<Array<{ content: string, result: string, timestamp: string }>>([]);
+  const [searchHistory, setSearchHistory] = useState<
+    Array<{ content: string; result: string; timestamp: string }>
+  >([]);
+  const [articleName, setArticleName] = useState<string>('');
+  const [articleContent, setArticleContent] = useState<string>('');
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [resultsPerPage] = useState<number>(10);
+
+  const fetchSearchHistory = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/search-history', {
+        params: { page: pageNumber, results_per_page: resultsPerPage },
+        withCredentials: true,
+      });
+      setSearchHistory(response.data.history);
+    } catch (error) {
+      console.error('Error fetching search history:', error);
+    }
+  };
 
   const handleTweetSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
-    setResult('');
+    setCovidResult('');
+    setAuthenticityResult('');
     try {
       const response = await axios.post(
         'http://localhost:5000/api/check-tweet',
         { content: tweetContent, retweets, comments, likes },
         {
           headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-          withCredentials: true
+          withCredentials: true,
         }
       );
-      setResult(response.data.result);
+      const data = response.data;
+      setCovidResult(data.covid_result);
+
+      setTimeout(() => {
+        setAuthenticityResult(data.authenticity_result);
+        setLoading(false);
+      }, 2000);
 
       if (isLoggedIn) {
-        fetchSearchHistory();
+        await fetchSearchHistory();
       }
     } catch (error) {
       console.error('Error checking tweet:', error);
-      setResult('An error occurred while checking the tweet.');
+      setCovidResult('An error occurred while checking the tweet.');
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  const handleArticleCheckSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setCovidResult('');
+    setAuthenticityResult('');
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        'http://localhost:5000/api/check-article',
+        { article_name: articleName, article_content: articleContent },
+        {
+          headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+          withCredentials: true,
+        }
+      );
+      const data = response.data;
+      setCovidResult(data.covid_result);
+
+      setTimeout(() => {
+        setAuthenticityResult(data.authenticity_result);
+        setLoading(false);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error checking article:', error);
+      setCovidResult('An error occurred while checking the article.');
+      setLoading(false);
+    }
   };
 
   const handleRegisterSubmit = async (event: React.FormEvent) => {
@@ -52,7 +110,7 @@ const App: React.FC = () => {
         { username: registrationUsername, password: registrationPassword },
         {
           headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-          withCredentials: true
+          withCredentials: true,
         }
       );
       setRegistrationMessage(response.data.message);
@@ -71,13 +129,13 @@ const App: React.FC = () => {
         { username, password },
         {
           headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-          withCredentials: true
+          withCredentials: true,
         }
       );
       setLoginMessage(response.data.message);
       if (response.status === 200) {
         setIsLoggedIn(true);
-        fetchSearchHistory();
+        await fetchSearchHistory();
       }
     } catch (error) {
       console.error('Error logging in:', error);
@@ -92,7 +150,7 @@ const App: React.FC = () => {
         {},
         {
           headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-          withCredentials: true
+          withCredentials: true,
         }
       );
       setLoginMessage(response.data.message);
@@ -106,138 +164,257 @@ const App: React.FC = () => {
     }
   };
 
-  const fetchSearchHistory = async () => {
-    try {
-      const response = await axios.get(
-        'http://localhost:5000/api/search-history',
-        {
-          headers: { 'Content-Type': 'application/json; charset=UTF-8' },
-          withCredentials: true
-        }
-      );
-      setSearchHistory(response.data.history);
-    } catch (error) {
-      console.error('Error fetching search history:', error);
+  const handlePrevPage = () => {
+    if (pageNumber > 1) {
+      setPageNumber(pageNumber - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    const maxPageNumber = Math.ceil(searchHistory.length / resultsPerPage);
+    if (pageNumber < maxPageNumber) {
+      setPageNumber(pageNumber + 1);
     }
   };
 
   useEffect(() => {
-    if (isLoggedIn) {
-      fetchSearchHistory();
+    const fetchData = async () => {
+      if (isLoggedIn) {
+        await fetchSearchHistory();
+      }
+    };
+    fetchData();
+  }, [isLoggedIn, pageNumber, resultsPerPage]);
+
+  const renderResultIcon = (result: string) => {
+    const iconSize = 48; // Increase the size of the icon
+    if (result.toLowerCase().includes('vrai')) {
+      return <FaCheckCircle className="result-icon" color="green" size={iconSize} />;
+    } else if (result.toLowerCase().includes('faux')) {
+      return <FaTimesCircle className="result-icon" color="red" size={iconSize} />;
     }
-  }, [isLoggedIn]);
+    return null;
+  };
+  
+  const handleDeleteAccount = async () => {
+  try {
+    const response = await axios.post(
+      'http://localhost:5000/api/delete-account',
+      {},
+      {
+        headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+        withCredentials: true,
+      }
+    );
+    
+    alert(response.data.message); // Affiche le message de succès ou d'échec
+    
+    if (response.status === 200) {
+      setIsLoggedIn(false); // Déconnexion de l'utilisateur côté client
+      setSearchHistory([]); // Efface l'historique de recherche
+
+      // Redirection vers la page d'utilisateur non connecté
+      window.location.replace('/'); // Vous pouvez remplacer '/' par l'URL de votre choix
+    }
+  } catch (error) {
+    console.error('Erreur lors de la suppression du compte :', error);
+    alert('Une erreur s\'est produite lors de la suppression du compte.');
+  }
+};
+
 
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Fake News Checker</h1>
-        <form onSubmit={handleTweetSubmit} className="tweet-form">
-          <textarea
-            value={tweetContent}
-            onChange={(e) => setTweetContent(e.target.value)}
-            placeholder="Enter Tweet Content"
-            required
-            className="tweet-textarea"
-          />
-          <div className="numeric-inputs">
-            <label>
-              Retweets:
-              <input
-                type="number"
-                value={retweets}
-                onChange={(e) => setRetweets(Number(e.target.value))}
-                placeholder="Retweets"
-                required
-                min="0"
-                step="1"
-              />
-            </label>
-            <label>
-              Comments:
-              <input
-                type="number"
-                value={comments}
-                onChange={(e) => setComments(Number(e.target.value))}
-                placeholder="Comments"
-                required
-                min="0"
-                step="1"
-              />
-            </label>
-            <label>
-              Likes:
-              <input
-                type="number"
-                value={likes}
-                onChange={(e) => setLikes(Number(e.target.value))}
-                placeholder="Likes"
-                required
-                min="0"
-                step="1"
-              />
-            </label>
-          </div>
-          <button type="submit" disabled={loading}>Check</button>
-        </form>
-        {loading ? <p>Loading...</p> : <p>{result}</p>}
-        {isLoggedIn ? (
-          <>
-            <button onClick={handleLogout}>Logout</button>
-            <p>{loginMessage}</p>
-            <h2>Search History</h2>
-            <ul>
-              {searchHistory.map((item, index) => (
-                <li key={index}>
-                  <p>{item.timestamp}: {item.content} - {item.result}</p>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <>
-            <h2>Login</h2>
-            <form onSubmit={handleLoginSubmit}>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter Username"
-                required
-              />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter Password"
-                required
-              />
-              <button type="submit">Login</button>
-            </form>
-            <p>{loginMessage}</p>
-            <h2>Register</h2>
-            <form onSubmit={handleRegisterSubmit}>
-              <input
-                type="text"
-                value={registrationUsername}
-                onChange={(e) => setRegistrationUsername(e.target.value)}
-                placeholder="Enter Username"
-                required
-              />
-              <input
-                type="password"
-                value={registrationPassword}
-                onChange={(e) => setRegistrationPassword(e.target.value)}
-                placeholder="Enter Password"
-                required
-              />
-              <button type="submit">Register</button>
-            </form>
-            <p>{registrationMessage}</p>
-          </>
-        )}
+        <h1>Coronavirus Fact Checker</h1>
       </header>
+      <div className="container">
+        <div className="tabs">
+          <button className={activeTab === 'tweet' ? 'active' : ''} onClick={() => setActiveTab('tweet')}>
+            Check Tweet
+          </button>
+          <button className={activeTab === 'article' ? 'active' : ''} onClick={() => setActiveTab('article')}>
+            Check Article
+          </button>
+        </div>
+        <div className="tab-content">
+          {activeTab === 'tweet' && (
+            <div>
+              <h2>Check Tweet</h2>
+              <form className="tweet-form" onSubmit={handleTweetSubmit}>
+                <textarea
+                  className="tweet-textarea"
+                  value={tweetContent}
+                  onChange={e => setTweetContent(e.target.value)}
+                  placeholder="Enter tweet content"
+                  required
+                />
+                <div className="numeric-inputs">
+                  <label>
+                    Retweets
+                    <input type="number" value={retweets} onChange={e => setRetweets(Number(e.target.value))} required />
+                  </label>
+                  <label>
+                    Comments
+                    <input type="number" value={comments} onChange={e => setComments(Number(e.target.value))} required />
+                  </label>
+                  <label>
+                    Likes
+                    <input type="number" value={likes} onChange={e => setLikes(Number(e.target.value))} required />
+                  </label>
+                </div>
+                <button type="submit" className="submit-button">
+                  Check Tweet
+                </button>
+              </form>
+              {loading ? (
+                <ClipLoader color={'#123abc'} loading={loading} size={150} />
+              ) : (
+                covidResult && (
+                  <div className="result">
+                    <h3>Covid Result:</h3>
+                    <div className="result-text">
+                                            {covidResult}
+                      {renderResultIcon(covidResult)}
+                    </div>
+                  </div>
+                )
+              )}
+              {authenticityResult && (
+                <div className="result">
+                  <h3>Authenticity Result:</h3>
+                  <div className="result-text">
+                    {authenticityResult}
+                    {renderResultIcon(authenticityResult)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {activeTab === 'article' && (
+            <div>
+              <h2>Check Article</h2>
+              <form className="article-form" onSubmit={handleArticleCheckSubmit}>
+                <input
+                  type="text"
+                  value={articleName}
+                  onChange={e => setArticleName(e.target.value)}
+                  placeholder="Enter article name"
+                  required
+                />
+                <textarea
+                  className="article-textarea"
+                  value={articleContent}
+                  onChange={e => setArticleContent(e.target.value)}
+                  placeholder="Enter article content"
+                  required
+                />
+                <button type="submit" className="submit-button">
+                  Check Article
+                </button>
+              </form>
+              {loading ? (
+                <ClipLoader color={'#123abc'} loading={loading} size={150} />
+              ) : (
+                covidResult && (
+                  <div className="result">
+                    <h3>Covid Result:</h3>
+                    <div className="result-text">
+                      {covidResult}
+                      {renderResultIcon(covidResult)}
+                    </div>
+                  </div>
+                )
+              )}
+              {authenticityResult && (
+                <div className="result">
+                  <h3>Authenticity Result:</h3>
+                  <div className="result-text">
+                    {authenticityResult}
+                    {renderResultIcon(authenticityResult)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="user-authentication">
+            {!isLoggedIn ? (
+              <div>
+                <h2>Register</h2>
+                <form onSubmit={handleRegisterSubmit}>
+                  <label>
+                    Username
+                    <input
+                      type="text"
+                      value={registrationUsername}
+                      onChange={e => setRegistrationUsername(e.target.value)}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Password
+                    <input
+                      type="password"
+                      value={registrationPassword}
+                      onChange={e => setRegistrationPassword(e.target.value)}
+                      required
+                    />
+                  </label>
+                  <button type="submit" className="submit-button">Register</button>
+                </form>
+                {registrationMessage && <p>{registrationMessage}</p>}
+                <h2>Login</h2>
+                <form onSubmit={handleLoginSubmit}>
+                  <label>
+                    Username
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={e => setUsername(e.target.value)}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Password
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required
+                    />
+                  </label>
+                  <button type="submit" className="submit-button">Login</button>
+                </form>
+                {loginMessage && <p>{loginMessage}</p>}
+              </div>
+            ) : (
+              <div>
+                <h2>Search History</h2>
+                {searchHistory.length > 0 ? (
+                  <div>
+                    <ul className="history-list">
+                      {searchHistory.map((entry, index) => (
+                        <li key={index} className="history-item">
+                          <p>Content: {entry.content}</p>
+                          <p>Result: {entry.result}</p>
+                          <p>Timestamp: {entry.timestamp}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p>No search history found.</p>
+                )}
+                <button onClick={handleLogout} className="submit-button">Logout</button>
+                <button onClick={handleDeleteAccount} className="submit-button">Delete Account</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
 export default App;
+
