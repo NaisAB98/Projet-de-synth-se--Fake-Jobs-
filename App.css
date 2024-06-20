@@ -1,72 +1,130 @@
 .App {
   text-align: center;
-}
-
-.App-header {
-  background-color: #282c34;
+  background-color: #002b5c;
+  color: white;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  align-items: center;
 }
 
-form.tweet-form {
+.App-header {
+  background-color: #002b5c;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.tabs {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 80%;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.tabs button {
+  background-color: #004080;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  cursor: pointer;
+  margin: 0 10px;
+}
+
+.tabs button.active {
+  background-color: #002b5c;
+}
+
+.tab-content {
+  width: 100%;
   max-width: 600px;
   margin: 0 auto;
 }
 
-.tweet-textarea {
-  width: 100%;
-  height: 150px;
-  padding: 10px;
-  margin-bottom: 20px;
-  font-size: 16px;
-}
-
-.numeric-inputs {
+.tweet-form {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
   gap: 10px;
   margin-bottom: 20px;
 }
 
-.numeric-inputs label {
+.tweet-textarea,
+#articleContent {
+  width: 100%;
+  height: 100px;
+  background-color: #004080;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.article-textarea,
+#articleContent {
+  width: 100%;
+  height: 300px;
+  background-color: #004080;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 10px;
+}
+
+
+.numeric-inputs,
+.article-inputs {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.numeric-inputs label,
+.article-inputs label {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  width: 60%;
-  padding: 10px;
-  font-size: 16px;
+  color: white;
 }
 
-.numeric-inputs input {
-  width: 100%;
-  padding: 10px;
-  font-size: 16px;
-  text-align: center;
+.numeric-inputs input,
+.article-inputs input {
+  width: 100px;
+  background-color: #004080;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 5px;
 }
 
 button {
+  background-color: #004080;
+  color: white;
+  border: none;
+  border-radius: 5px;
   padding: 10px 20px;
-  font-size: 16px;
   cursor: pointer;
 }
 
-ul {
-  list-style-type: none;
-  padding: 0;
+button:disabled {
+  background-color: #002b5c;
 }
 
-li {
+input[type='text'],
+input[type='password'] {
+  width: 100%;
+  background-color: #004080;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 10px;
   margin-bottom: 10px;
-  text-align: left;
+}
+
+.result-icon {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px; /* Espacement par rapport au texte */
+  font-size: 96px; /* Taille de l'icône */
+  margin-left: 46%; /* Décalage vers la droite */
 }
